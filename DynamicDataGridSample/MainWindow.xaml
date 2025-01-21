@@ -2,11 +2,11 @@
     x:Class="DynamicDataGridSample.MainWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="clr-namespace:DynamicDataGridSample.Controls"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:local="clr-namespace:DynamicDataGridSample"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:viewmodels="clr-namespace:DynamicDataGridSample.ViewModels"
-    xmlns:controls="clr-namespace:DynamicDataGridSample.Controls"
     Title="MainWindow"
     Width="800"
     Height="450"
@@ -45,7 +45,13 @@
             Grid.Row="2"
             AutoGenerateColumns="False"
             CanUserAddRows="False"
-            ItemsSource="{Binding Rows}"
-            ColumnsSource="{Binding Columns}" />
+            CanUserDeleteRows="False"
+            CanUserResizeColumns="False"
+            CanUserResizeRows="False"
+            CanUserSortColumns="False"
+            SelectionMode="Single"
+            SelectionUnit="Cell"
+            ColumnsSource="{Binding Columns}"
+            ItemsSource="{Binding Rows}" />
     </Grid>
 </Window>

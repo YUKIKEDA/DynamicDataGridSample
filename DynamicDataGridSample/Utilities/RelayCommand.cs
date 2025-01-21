@@ -20,6 +20,10 @@ namespace DynamicDataGridSample.Utilities
 
         public void Execute(object? parameter)
         {
+            if (parameter is string strValue && typeof(T) == typeof(bool))
+            {
+                parameter = bool.Parse(strValue);
+            }
             _execute((T)parameter!);
         }
     }

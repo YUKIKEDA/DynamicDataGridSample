@@ -1,6 +1,7 @@
 ﻿using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Input;
@@ -18,27 +19,24 @@ namespace DynamicDataGridSample.ViewModels
             get => _rows;
             set
             {
-                if (_rows != value)
+                // Unsubscribe from the PropertyChanged event of each item in the old collection
+                foreach (var item in _rows)
                 {
-                    // Unsubscribe from the PropertyChanged event of each item in the old collection
-                    foreach (var item in _rows)
-                    {
-                        item.PropertyChanged -= OnRowPropertyChanged;
-                    }
+                    item.PropertyChanged -= OnRowPropertyChanged;
                 }
 
                 _rows = value;
 
-                if (_rows != value)
+                // Subscribe to the PropertyChanged event of each item in the new collection
+                foreach (var item in _rows)
                 {
-                    // Subscribe to the PropertyChanged event of each item in the new collection
-                    foreach (var item in _rows)
-                    {
-                        item.PropertyChanged += OnRowPropertyChanged;
-                    }
+                    item.PropertyChanged += OnRowPropertyChanged;
                 }
 
                 OnPropertyChanged();
+
+                // Update the selected count when the rows collection changes
+                UpdateSelectedCount();
             }
         }
 
@@ -168,13 +166,21 @@ namespace DynamicDataGridSample.ViewModels
         {
             Columns = new ObservableCollection<DataGridColumn>();
 
-            Columns.Add(new DataGridCheckBoxColumn
+            var checkBoxFactory = new FrameworkElementFactory(typeof(CheckBox));
+            checkBoxFactory.SetBinding(CheckBox.IsCheckedProperty, new Binding("IsSelected") 
+            { 
+                Mode = BindingMode.TwoWay,
+                UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged 
+            });
+            checkBoxFactory.SetValue(CheckBox.HorizontalAlignmentProperty, HorizontalAlignment.Center);
+            checkBoxFactory.SetValue(CheckBox.VerticalAlignmentProperty, VerticalAlignment.Center);
+
+            var checkBoxTemplate = new DataTemplate { VisualTree = checkBoxFactory };
+
+            Columns.Add(new DataGridTemplateColumn
             {
                 Header = "選択",
-                Binding = new Binding("IsSelected")
-                {
-                    UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged
-                },
+                CellTemplate = checkBoxTemplate,
                 Width = new DataGridLength(60)
             });
 
@@ -186,7 +192,8 @@ namespace DynamicDataGridSample.ViewModels
                     Columns.Add(new DataGridTextColumn
                     {
                         Header = key,
-                        Binding = new Binding($"Data[{key}]")
+                        Binding = new Binding($"Data[{key}]"),
+                        IsReadOnly = true
                     });
                 }
             }
