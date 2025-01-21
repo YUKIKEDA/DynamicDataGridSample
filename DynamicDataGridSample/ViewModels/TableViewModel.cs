@@ -67,6 +67,7 @@ namespace DynamicDataGridSample.ViewModels
         }
 
         public event EventHandler<SelectionChangedEventArgs>? SelectionChanged;
+        public event EventHandler<ProcessSelectedEventArgs>? ProcessSelected;
 
         public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -79,15 +80,12 @@ namespace DynamicDataGridSample.ViewModels
         {
             if (e.PropertyName == nameof(TableRowModel.IsSelected))
             {
-                var row = (TableRowModel)sender!;
-
-                UpdateSelectedCount();
-
-                // Raise the SelectionChanged event
-                SelectionChanged?.Invoke(this, new SelectionChangedEventArgs(row));
-
-                // Invalidate the RequerySuggested event
-                CommandManager.InvalidateRequerySuggested();
+                if (sender is TableRowModel row)
+                {
+                    UpdateSelectedCount();
+                    SelectionChanged?.Invoke(this, new SelectionChangedEventArgs(row));
+                    CommandManager.InvalidateRequerySuggested();
+                }
             }
         }
 
@@ -108,100 +106,94 @@ namespace DynamicDataGridSample.ViewModels
 
         public ICommand ProcessSelectedCommand { get; }
 
-        private bool CanProcessSelected()
+        private void ProcessSelectedItems()
         {
-            return SelectedCount > 0;
+            var selectedItems = Rows?.Where(x => x?.IsSelected == true).ToList();
+            if (selectedItems == null || selectedItems.Count == 0)
+            {
+                return;
+            }
+
+            ProcessSelected?.Invoke(this, new ProcessSelectedEventArgs(selectedItems));
         }
 
-        private void ProcessSelected()
-        {
-            var selectedItems = Rows.Where(x => x.IsSelected).ToList();
-            // 選択されたアイテムの処理をここに実装
-        }
+        private readonly bool _showCheckBoxColumn;
 
-
-        public TableViewModel()
+        public TableViewModel(
+            IEnumerable<TableRowModel>? initialData = null,
+            bool showCheckBoxColumn = true)
         {
-            InitializeData();
+            _showCheckBoxColumn = showCheckBoxColumn;
+            Rows = new ObservableCollection<TableRowModel>(initialData ?? []);
             InitializeColumns();
 
             SelectAllCommand = new RelayCommand<bool>(SelectAll);
-            ProcessSelectedCommand = new RelayCommand(ProcessSelected, CanProcessSelected);
-        }
-
-        private void InitializeData()
-        {
-            var items = new ObservableCollection<TableRowModel>();
-
-            var item1 = new TableRowModel
-            {
-                IsSelected = false,
-                Data = new Dictionary<string, object>
-            {
-                { "ID", 1 },
-                { "Name", "Sample 1" },
-                { "Value", 100 }
-            }
-            };
-
-            var item2 = new TableRowModel
-            {
-                IsSelected = false,
-                Data = new Dictionary<string, object>
-            {
-                { "ID", 2 },
-                { "Name", "Sample 2" },
-                { "Value", 200 }
-            }
-            };
-
-            items.Add(item1);
-            items.Add(item2);
-
-            // Items プロパティを通して設定することで、イベントハンドラが適切に設定される
-            Rows = items;
+            ProcessSelectedCommand = new RelayCommand(ProcessSelectedItems, () => SelectedCount > 0);
         }
 
         private void InitializeColumns()
         {
-            Columns = new ObservableCollection<DataGridColumn>();
+            var columns = new ObservableCollection<DataGridColumn>();
 
+            // 選択列の作成
+            if (_showCheckBoxColumn)
+            {
+                var checkBoxTemplate = CreateCheckBoxTemplate();
+                columns.Add(new DataGridTemplateColumn
+                {
+                    Header = "選択",
+                    CellTemplate = checkBoxTemplate,
+                    Width = new DataGridLength(60)
+                });
+            }
+
+            // データ列の作成
+            if (!Rows.Any() || Rows.First().Data == null)
+            {
+                Columns = columns;
+                return;
+            }
+
+            foreach (var key in Rows.First().Data.Keys)
+            {
+                if (string.IsNullOrEmpty(key))
+                {
+                    continue;
+                }
+
+                columns.Add(new DataGridTextColumn
+                {
+                    Header = key,
+                    Binding = new Binding($"Data[{key}]"),
+                    IsReadOnly = true
+                });
+            }
+
+            Columns = columns;
+        }
+
+        private static DataTemplate CreateCheckBoxTemplate()
+        {
             var checkBoxFactory = new FrameworkElementFactory(typeof(CheckBox));
-            checkBoxFactory.SetBinding(CheckBox.IsCheckedProperty, new Binding("IsSelected") 
-            { 
+            checkBoxFactory.SetBinding(CheckBox.IsCheckedProperty, new Binding("IsSelected")
+            {
                 Mode = BindingMode.TwoWay,
-                UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged 
+                UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged
             });
             checkBoxFactory.SetValue(CheckBox.HorizontalAlignmentProperty, HorizontalAlignment.Center);
             checkBoxFactory.SetValue(CheckBox.VerticalAlignmentProperty, VerticalAlignment.Center);
 
-            var checkBoxTemplate = new DataTemplate { VisualTree = checkBoxFactory };
-
-            Columns.Add(new DataGridTemplateColumn
-            {
-                Header = "選択",
-                CellTemplate = checkBoxTemplate,
-                Width = new DataGridLength(60)
-            });
-
-            if (Rows.Any())
-            {
-                var firstItem = Rows.First().Data;
-                foreach (var key in firstItem.Keys)
-                {
-                    Columns.Add(new DataGridTextColumn
-                    {
-                        Header = key,
-                        Binding = new Binding($"Data[{key}]"),
-                        IsReadOnly = true
-                    });
-                }
-            }
+            return new DataTemplate { VisualTree = checkBoxFactory };
         }
     }
 
     public class SelectionChangedEventArgs(TableRowModel row) : EventArgs
     {
         public TableRowModel Row { get; } = row;
+    }
+
+    public class ProcessSelectedEventArgs(IReadOnlyList<TableRowModel> selectedItems) : EventArgs
+    {
+        public IReadOnlyList<TableRowModel> SelectedItems { get; } = selectedItems;
     }
 }
