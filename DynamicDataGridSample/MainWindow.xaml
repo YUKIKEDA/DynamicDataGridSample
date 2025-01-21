@@ -21,16 +21,6 @@
         <StackPanel Margin="5" Orientation="Horizontal">
             <Button
                 Margin="5"
-                Command="{Binding SelectAllCommand}"
-                CommandParameter="True"
-                Content="全選択" />
-            <Button
-                Margin="5"
-                Command="{Binding SelectAllCommand}"
-                CommandParameter="False"
-                Content="全解除" />
-            <Button
-                Margin="5"
                 Command="{Binding ProcessSelectedCommand}"
                 Content="選択項目を処理" />
         </StackPanel>

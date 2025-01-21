@@ -8,8 +8,9 @@ namespace DynamicDataGridSample
     /// <summary>
     /// Interaction logic for MainWindow.xaml
     /// </summary>
-    public partial class MainWindow : Window
+    public partial class MainWindow : Window, IDisposable
     {
+        private bool _disposed;
         private readonly TableViewModel _viewModel;
 
         public MainWindow()
@@ -45,6 +46,32 @@ namespace DynamicDataGridSample
             // _viewModel = new TableViewModel();
 
             DataContext = _viewModel;
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (_disposed)
+                return;
+
+            if (disposing)
+            {
+                _viewModel.ProcessSelected -= OnProcessSelected;
+                _viewModel.ProcessSelected -= LogSelectedItems;
+                _viewModel.Dispose();
+            }
+
+            _disposed = true;
+        }
+
+        ~MainWindow()
+        {
+            Dispose(false);
         }
 
         private void OnProcessSelected(object? sender, ProcessSelectedEventArgs e)

@@ -10,9 +10,31 @@ using DynamicDataGridSample.Utilities;
 
 namespace DynamicDataGridSample.ViewModels
 {
-    public class TableViewModel : INotifyPropertyChanged
+    public class TableViewModel : INotifyPropertyChanged, IDisposable
     {
+        private bool _disposed;
         private ObservableCollection<TableRowModel> _rows = [];
+        private readonly bool _showCheckBoxColumn;
+        private bool? _allSelected = false;
+        private int _selectedCount;
+        private ObservableCollection<DataGridColumn> _columns = [];
+
+        public bool? AllSelected
+        {
+            get => _allSelected;
+            set
+            {
+                if (_allSelected != value)
+                {
+                    _allSelected = value;
+                    OnPropertyChanged();
+                    if (value != null)
+                    {
+                        SelectAll(value.Value);
+                    }
+                }
+            }
+        }
 
         public ObservableCollection<TableRowModel> Rows
         {
@@ -40,8 +62,6 @@ namespace DynamicDataGridSample.ViewModels
             }
         }
 
-        private int _selectedCount;
-
         public int SelectedCount
         {
             get => _selectedCount;
@@ -55,7 +75,6 @@ namespace DynamicDataGridSample.ViewModels
             }
         }
 
-        private ObservableCollection<DataGridColumn> _columns = [];
         public ObservableCollection<DataGridColumn> Columns
         {
             get => _columns;
@@ -67,9 +86,20 @@ namespace DynamicDataGridSample.ViewModels
         }
 
         public event EventHandler<SelectionChangedEventArgs>? SelectionChanged;
+
         public event EventHandler<ProcessSelectedEventArgs>? ProcessSelected;
 
         public event PropertyChangedEventHandler? PropertyChanged;
+        public ICommand ProcessSelectedCommand { get; }
+
+        public TableViewModel(IEnumerable<TableRowModel>? initialData = null, bool showCheckBoxColumn = true)
+        {
+            _showCheckBoxColumn = showCheckBoxColumn;
+            Rows = new ObservableCollection<TableRowModel>(initialData ?? []);
+            InitializeColumns();
+            ProcessSelectedCommand = new RelayCommand(ProcessSelectedItems, () => SelectedCount > 0);
+            UpdateAllSelectedState();
+        }
 
         protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
         {
@@ -83,6 +113,7 @@ namespace DynamicDataGridSample.ViewModels
                 if (sender is TableRowModel row)
                 {
                     UpdateSelectedCount();
+                    UpdateAllSelectedState();
                     SelectionChanged?.Invoke(this, new SelectionChangedEventArgs(row));
                     CommandManager.InvalidateRequerySuggested();
                 }
@@ -94,7 +125,17 @@ namespace DynamicDataGridSample.ViewModels
             SelectedCount = Rows.Count(row => row.IsSelected);
         }
 
-        public ICommand SelectAllCommand { get; }
+        private void UpdateAllSelectedState()
+        {
+            if (!Rows.Any())
+            {
+                AllSelected = false;
+                return;
+            }
+
+            var selectedCount = Rows.Count(r => r.IsSelected);
+            AllSelected = selectedCount == 0 ? false : selectedCount == Rows.Count ? true : null;
+        }
 
         private void SelectAll(bool isSelected)
         {
@@ -103,8 +144,6 @@ namespace DynamicDataGridSample.ViewModels
                 row.IsSelected = isSelected;
             }
         }
-
-        public ICommand ProcessSelectedCommand { get; }
 
         private void ProcessSelectedItems()
         {
@@ -117,20 +156,6 @@ namespace DynamicDataGridSample.ViewModels
             ProcessSelected?.Invoke(this, new ProcessSelectedEventArgs(selectedItems));
         }
 
-        private readonly bool _showCheckBoxColumn;
-
-        public TableViewModel(
-            IEnumerable<TableRowModel>? initialData = null,
-            bool showCheckBoxColumn = true)
-        {
-            _showCheckBoxColumn = showCheckBoxColumn;
-            Rows = new ObservableCollection<TableRowModel>(initialData ?? []);
-            InitializeColumns();
-
-            SelectAllCommand = new RelayCommand<bool>(SelectAll);
-            ProcessSelectedCommand = new RelayCommand(ProcessSelectedItems, () => SelectedCount > 0);
-        }
-
         private void InitializeColumns()
         {
             var columns = new ObservableCollection<DataGridColumn>();
@@ -138,11 +163,13 @@ namespace DynamicDataGridSample.ViewModels
             // 選択列の作成
             if (_showCheckBoxColumn)
             {
-                var checkBoxTemplate = CreateCheckBoxTemplate();
+                var headerCheckBoxTemplate = CreateHeaderCheckBoxTemplate();
+                var cellCheckBoxTemplate = CreateCheckBoxTemplate();
+
                 columns.Add(new DataGridTemplateColumn
                 {
-                    Header = "選択",
-                    CellTemplate = checkBoxTemplate,
+                    HeaderTemplate = headerCheckBoxTemplate,
+                    CellTemplate = cellCheckBoxTemplate,
                     Width = new DataGridLength(60)
                 });
             }
@@ -172,6 +199,21 @@ namespace DynamicDataGridSample.ViewModels
             Columns = columns;
         }
 
+        private static DataTemplate CreateHeaderCheckBoxTemplate()
+        {
+            var checkBoxFactory = new FrameworkElementFactory(typeof(CheckBox));
+            checkBoxFactory.SetBinding(CheckBox.IsCheckedProperty, new Binding("DataContext.AllSelected")
+            {
+                Mode = BindingMode.TwoWay,
+                UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged,
+                RelativeSource = new RelativeSource(RelativeSourceMode.FindAncestor, typeof(DataGrid), 1)
+            });
+            checkBoxFactory.SetValue(CheckBox.HorizontalAlignmentProperty, HorizontalAlignment.Center);
+            checkBoxFactory.SetValue(CheckBox.VerticalAlignmentProperty, VerticalAlignment.Center);
+
+            return new DataTemplate { VisualTree = checkBoxFactory };
+        }
+
         private static DataTemplate CreateCheckBoxTemplate()
         {
             var checkBoxFactory = new FrameworkElementFactory(typeof(CheckBox));
@@ -184,6 +226,39 @@ namespace DynamicDataGridSample.ViewModels
             checkBoxFactory.SetValue(CheckBox.VerticalAlignmentProperty, VerticalAlignment.Center);
 
             return new DataTemplate { VisualTree = checkBoxFactory };
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (_disposed)
+                return;
+
+            if (disposing)
+            {
+                // イベントハンドラの解除
+                foreach (var item in _rows)
+                {
+                    item.PropertyChanged -= OnRowPropertyChanged;
+                }
+
+                // イベントの解除
+                PropertyChanged = null;
+                SelectionChanged = null;
+                ProcessSelected = null;
+            }
+
+            _disposed = true;
+        }
+
+        ~TableViewModel()
+        {
+            Dispose(false);
         }
     }
 

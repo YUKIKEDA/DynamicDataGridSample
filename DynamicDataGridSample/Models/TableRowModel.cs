@@ -3,8 +3,9 @@ using System.Runtime.CompilerServices;
 
 namespace DynamicDataGridSample.Models
 {
-    public class TableRowModel : INotifyPropertyChanged
+    public class TableRowModel : INotifyPropertyChanged, IDisposable
     {
+        private bool _disposed;
         private Dictionary<string, object> _data = [];
         private bool _isSelected = false;
 
@@ -36,6 +37,30 @@ namespace DynamicDataGridSample.Models
         protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (_disposed)
+                return;
+
+            if (disposing)
+            {
+                PropertyChanged = null;
+            }
+
+            _disposed = true;
+        }
+
+        ~TableRowModel()
+        {
+            Dispose(false);
         }
     }
 }
