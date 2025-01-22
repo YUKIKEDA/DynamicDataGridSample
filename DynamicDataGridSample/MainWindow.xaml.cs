@@ -40,7 +40,7 @@ namespace DynamicDataGridSample
             _viewModel = new TableViewModel<SampleDataModel>(initialData);
             _viewModel.ProcessSelected += OnProcessSelected;
             _viewModel.ProcessSelected += LogSelectedItems;
-
+            System.Diagnostics.Debug.WriteLine(_viewModel.GetCsvData());
             // _viewModel = new TableViewModel();
 
             DataContext = _viewModel;

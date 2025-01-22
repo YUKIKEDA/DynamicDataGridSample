@@ -7,6 +7,7 @@ using System.Windows.Data;
 using System.Windows.Input;
 using DynamicDataGridSample.Models;
 using DynamicDataGridSample.Utilities;
+using System.Text;
 
 namespace DynamicDataGridSample.ViewModels
 {
@@ -99,6 +100,45 @@ namespace DynamicDataGridSample.ViewModels
             InitializeColumns();
             ProcessSelectedCommand = new RelayCommand(ProcessSelectedItems, () => SelectedCount > 0);
             UpdateAllSelectedState();
+        }
+
+        public string GetCsvData()
+        {
+            var sb = new StringBuilder();
+
+            // ヘッダー行の作成（データ列のみ）
+            var headers = Columns.OfType<DataGridTextColumn>()
+                .Select(column => column.Header?.ToString() ?? string.Empty)
+                .ToList();
+            sb.AppendLine(string.Join(",", headers.Select(EscapeCsvField)));
+
+            // データ行の作成
+            foreach (var row in Rows)
+            {
+                var columnDefinitions = row.Data.GetColumnDefinitions();
+                var fields = columnDefinitions
+                    .Select(definition => 
+                    {
+                        var value = row.Data.GetType().GetProperty(definition.PropertyPath)?.GetValue(row.Data)?.ToString() ?? string.Empty;
+                        return EscapeCsvField(value);
+                    });
+
+                sb.AppendLine(string.Join(",", fields));
+            }
+
+            return sb.ToString();
+        }
+
+        private static string EscapeCsvField(string field)
+        {
+            if (string.IsNullOrEmpty(field)) return string.Empty;
+            
+            if (field.Contains(",") || field.Contains("\"") || field.Contains("\n"))
+            {
+                return $"\"{field.Replace("\"", "\"\"")}\"";
+            }
+            
+            return field;
         }
 
         protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
