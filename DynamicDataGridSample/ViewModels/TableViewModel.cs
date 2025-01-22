@@ -10,10 +10,10 @@ using DynamicDataGridSample.Utilities;
 
 namespace DynamicDataGridSample.ViewModels
 {
-    public class TableViewModel : INotifyPropertyChanged, IDisposable
+    public class TableViewModel<T> : INotifyPropertyChanged, IDisposable where T : DynamicDataModel
     {
         private bool _disposed;
-        private ObservableCollection<TableRowModel> _rows = [];
+        private ObservableCollection<TableRowModel<T>> _rows = [];
         private readonly bool _showCheckBoxColumn;
         private bool? _allSelected = false;
         private int _selectedCount;
@@ -36,7 +36,7 @@ namespace DynamicDataGridSample.ViewModels
             }
         }
 
-        public ObservableCollection<TableRowModel> Rows
+        public ObservableCollection<TableRowModel<T>> Rows
         {
             get => _rows;
             set
@@ -85,17 +85,17 @@ namespace DynamicDataGridSample.ViewModels
             }
         }
 
-        public event EventHandler<SelectionChangedEventArgs>? SelectionChanged;
+        public event EventHandler<SelectionChangedEventArgs<T>>? SelectionChanged;
 
-        public event EventHandler<ProcessSelectedEventArgs>? ProcessSelected;
+        public event EventHandler<ProcessSelectedEventArgs<T>>? ProcessSelected;
 
         public event PropertyChangedEventHandler? PropertyChanged;
         public ICommand ProcessSelectedCommand { get; }
 
-        public TableViewModel(IEnumerable<TableRowModel>? initialData = null, bool showCheckBoxColumn = true)
+        public TableViewModel(IEnumerable<TableRowModel<T>>? initialData = null, bool showCheckBoxColumn = true)
         {
             _showCheckBoxColumn = showCheckBoxColumn;
-            Rows = new ObservableCollection<TableRowModel>(initialData ?? []);
+            Rows = new ObservableCollection<TableRowModel<T>>(initialData ?? []);
             InitializeColumns();
             ProcessSelectedCommand = new RelayCommand(ProcessSelectedItems, () => SelectedCount > 0);
             UpdateAllSelectedState();
@@ -108,13 +108,13 @@ namespace DynamicDataGridSample.ViewModels
 
         private void OnRowPropertyChanged(object? sender, PropertyChangedEventArgs e)
         {
-            if (e.PropertyName == nameof(TableRowModel.IsSelected))
+            if (e.PropertyName == nameof(TableRowModel<T>.IsSelected))
             {
-                if (sender is TableRowModel row)
+                if (sender is TableRowModel<T> row)
                 {
                     UpdateSelectedCount();
                     UpdateAllSelectedState();
-                    SelectionChanged?.Invoke(this, new SelectionChangedEventArgs(row));
+                    SelectionChanged?.Invoke(this, new SelectionChangedEventArgs<T>(row));
                     CommandManager.InvalidateRequerySuggested();
                 }
             }
@@ -153,7 +153,7 @@ namespace DynamicDataGridSample.ViewModels
                 return;
             }
 
-            ProcessSelected?.Invoke(this, new ProcessSelectedEventArgs(selectedItems));
+            ProcessSelected?.Invoke(this, new ProcessSelectedEventArgs<T>(selectedItems));
         }
 
         private void InitializeColumns()
@@ -181,18 +181,20 @@ namespace DynamicDataGridSample.ViewModels
                 return;
             }
 
-            foreach (var key in Rows.First().Data.Keys)
+            var columnDefinitions = Rows.First().Data.GetColumnDefinitions();
+            foreach (var definition in columnDefinitions)
             {
-                if (string.IsNullOrEmpty(key))
+                var binding = new Binding($"Data.{definition.PropertyPath}")
                 {
-                    continue;
-                }
+                    Converter = definition.Converter,
+                    StringFormat = definition.StringFormat
+                };
 
                 columns.Add(new DataGridTextColumn
                 {
-                    Header = key,
-                    Binding = new Binding($"Data[{key}]"),
-                    IsReadOnly = true
+                    Header = definition.Header,
+                    Binding = binding,
+                    IsReadOnly = definition.IsReadOnly
                 });
             }
 
@@ -262,13 +264,13 @@ namespace DynamicDataGridSample.ViewModels
         }
     }
 
-    public class SelectionChangedEventArgs(TableRowModel row) : EventArgs
+    public class SelectionChangedEventArgs<T>(TableRowModel<T> row) : EventArgs where T : DynamicDataModel
     {
-        public TableRowModel Row { get; } = row;
+        public TableRowModel<T> Row { get; } = row;
     }
 
-    public class ProcessSelectedEventArgs(IReadOnlyList<TableRowModel> selectedItems) : EventArgs
+    public class ProcessSelectedEventArgs<T>(IReadOnlyList<TableRowModel<T>> selectedItems) : EventArgs where T : DynamicDataModel
     {
-        public IReadOnlyList<TableRowModel> SelectedItems { get; } = selectedItems;
+        public IReadOnlyList<TableRowModel<T>> SelectedItems { get; } = selectedItems;
     }
 }

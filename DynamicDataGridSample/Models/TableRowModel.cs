@@ -3,13 +3,13 @@ using System.Runtime.CompilerServices;
 
 namespace DynamicDataGridSample.Models
 {
-    public class TableRowModel : INotifyPropertyChanged, IDisposable
+    public class TableRowModel<T>(T data) : INotifyPropertyChanged, IDisposable where T : DynamicDataModel
     {
         private bool _disposed;
-        private Dictionary<string, object> _data = [];
-        private bool _isSelected = false;
+        private T _data = data;
+        private bool _isSelected;
 
-        public Dictionary<string, object> Data
+        public T Data
         {
             get => _data;
             set

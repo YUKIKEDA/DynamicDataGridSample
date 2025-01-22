@@ -11,35 +11,33 @@ namespace DynamicDataGridSample
     public partial class MainWindow : Window, IDisposable
     {
         private bool _disposed;
-        private readonly TableViewModel _viewModel;
+        private readonly TableViewModel<SampleDataModel> _viewModel;
 
         public MainWindow()
         {
             InitializeComponent();
 
-            var initialData = new List<TableRowModel>
+            var initialData = new List<TableRowModel<SampleDataModel>>
             {
-                new()
+                new(new SampleDataModel
                 {
-                    Data = new Dictionary<string, object>
-                    {
-                        { "ID", 1 },
-                        { "Name", "Sample 1" },
-                        { "Value", 100 }
-                    }
-                },
-                new()
+                    Id = 1,
+                    Name = "Sample 1",
+                    Value = 100,
+                    CreatedAt = DateTime.Now.AddDays(-1),
+                    IsActive = true
+                }),
+                new(new SampleDataModel
                 {
-                    Data = new Dictionary<string, object>
-                    {
-                        { "ID", 2 },
-                        { "Name", "Sample 2" },
-                        { "Value", 200 }
-                    }
-                }
+                    Id = 2,
+                    Name = "Sample 2",
+                    Value = 200,
+                    CreatedAt = DateTime.Now,
+                    IsActive = false
+                })
             };
 
-            _viewModel = new TableViewModel(initialData);
+            _viewModel = new TableViewModel<SampleDataModel>(initialData);
             _viewModel.ProcessSelected += OnProcessSelected;
             _viewModel.ProcessSelected += LogSelectedItems;
 
@@ -74,18 +72,18 @@ namespace DynamicDataGridSample
             Dispose(false);
         }
 
-        private void OnProcessSelected(object? sender, ProcessSelectedEventArgs e)
+        private void OnProcessSelected(object? sender, ProcessSelectedEventArgs<SampleDataModel> e)
         {
             MessageBox.Show($"選択されたアイテム数: {e.SelectedItems.Count}", "選択アイテム");
         }
 
-        private void LogSelectedItems(object? sender, ProcessSelectedEventArgs e)
+        private void LogSelectedItems(object? sender, ProcessSelectedEventArgs<SampleDataModel> e)
         {
             // ログ出力の例
             System.Diagnostics.Debug.WriteLine($"処理されたアイテム数: {e.SelectedItems.Count}");
             foreach (var item in e.SelectedItems)
             {
-                System.Diagnostics.Debug.WriteLine($"ID: {item.Data["ID"]}, Name: {item.Data["Name"]}");
+                System.Diagnostics.Debug.WriteLine($"ID: {item.Data.Id}, Name: {item.Data.Name}");
             }
         }
     }

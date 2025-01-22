@@ -9,7 +9,6 @@
     Title="MainWindow"
     Width="800"
     Height="450"
-    d:DataContext="{d:DesignInstance Type=vm:TableViewModel}"
     mc:Ignorable="d">
     <Grid>
         <Grid.RowDefinitions>
